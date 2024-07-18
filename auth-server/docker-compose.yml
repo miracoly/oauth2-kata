@@ -1,0 +1,14 @@
+name: keycloak-oauth2-kata
+
+services:
+  keycloak-oauth2-kata:
+    build:
+      dockerfile: Dockerfile
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=password
+    ports:
+      - 8888:8080
+    command:
+      - "start-dev"
+      - "--import-realm"
