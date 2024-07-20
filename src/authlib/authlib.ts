@@ -96,3 +96,5 @@ export const parseAuthResponseUrl: (url: string) => AuthResponse = (url) => {
   const searchParams = new URL(url, "http://localhost:8080").searchParams;
   return AuthResponse.parse(Object.fromEntries(searchParams.entries()));
 };
+
+const generateSessionId = () => crypto.randomBytes(16).toString("hex");

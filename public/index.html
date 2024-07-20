@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OAuth2 Coding Kata</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <nav>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="./secret.html">Secret Page</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <!-- Public Homepage -->
+    <main id="home">
+      <h1>Welcome to the OAuth2 Coding Kata</h1>
+      <p>
+        This coding kata will help you learn how to implement OAuth2 in your
+        applications.
+      </p>
+
+      <!-- Login/Logout logic will be determined by your authentication mechanism -->
+      <a href="/api/signin" class="button">Login</a>
+    </main>
+
+    <!-- Secret Page (content here should be protected by your authentication logic) -->
+    <main id="secret">
+      <h1>Secret Page</h1>
+      <p>Only logged-in users can see this page.</p>
+      <a href="/logout" class="button">Logout</a>
+    </main>
+
+    <script>
+      // Basic JS to show/hide content based on login state
+      document.addEventListener("DOMContentLoaded", function () {
+        const isLoggedIn = false; // Replace this with your actual login check
+        const home = document.getElementById("home");
+        const secret = document.getElementById("secret");
+
+        if (isLoggedIn) {
+          home.style.display = "none";
+          secret.style.display = "block";
+        } else {
+          home.style.display = "block";
+          secret.style.display = "none";
+        }
+      });
+    </script>
+  </body>
+</html>
