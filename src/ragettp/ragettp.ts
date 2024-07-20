@@ -1,17 +1,10 @@
 import type { RequestListener } from "http";
-import { IncomingMessage, ServerResponse } from "node:http";
 import { createLogger, format, Logger, transports } from "winston";
 
 type Path = string;
-type Response = Omit<InstanceType<typeof ServerResponse>, "end">;
 type HttpMethod = "GET" | "POST";
 
-type Handler = (
-  req: InstanceType<typeof IncomingMessage>,
-  res: Response,
-) => void;
-
-type Endpoint = (path: string, handler: Handler) => void;
+type Endpoint = (path: string, handler: RequestListener) => void;
 
 type Api = {
   [key: string]: Endpoint;
@@ -33,7 +26,7 @@ const initLogger: () => Logger = () => {
 const _logger = initLogger();
 
 const createRouterGroup = (method: HttpMethod, logger: Logger) => {
-  const endpoints = new Map<Path, Handler>();
+  const endpoints = new Map<Path, RequestListener>();
 
   const router: RequestListener = (req, res) => {
     const handler = endpoints.get(req.url);
@@ -41,7 +34,7 @@ const createRouterGroup = (method: HttpMethod, logger: Logger) => {
   };
 
   const handler: Endpoint = (path, handler) => {
-    const logAndHandle: Handler = (req, res) => {
+    const logAndHandle: RequestListener = (req, res) => {
       logger.info(`${method} - Request on path: ${req.url}`);
       handler(req, res);
     };
@@ -98,7 +91,6 @@ export const handleRequestsWith: (api: Api) => RequestListener =
       default:
         methodNotAllowed(req, res);
     }
-    res.end();
   };
 
 export const logger = _logger;
