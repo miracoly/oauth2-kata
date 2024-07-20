@@ -97,4 +97,56 @@ export const parseAuthResponseUrl: (url: string) => AuthResponse = (url) => {
   return AuthResponse.parse(Object.fromEntries(searchParams.entries()));
 };
 
-const generateSessionId = () => crypto.randomBytes(16).toString("hex");
+const IdToken = z.object({
+  sub: z.string(),
+  email: z.string(),
+  email_verified: z.boolean(),
+  preferred_username: z.string(),
+  exp: z.number(),
+  iat: z.number(),
+});
+
+type IdToken = z.infer<typeof IdToken>;
+
+const decodeJwt: (token: string) => unknown = (token) =>
+  JSON.parse(Buffer.from(token.split(".")[1], "base64").toString());
+
+export const parseIdToken: (token: string) => IdToken = (token) =>
+  IdToken.parse(decodeJwt(token));
+
+export const generateSessionId: () => string = () =>
+  crypto.randomBytes(16).toString("hex");
+
+export const initSessionMap = () => {
+  const sessions = new Map<string, IdToken>();
+
+  const createSession: (token: IdToken) => string = (token) => {
+    const sessionId = generateSessionId();
+    sessions.set(sessionId, token);
+    return sessionId;
+  };
+
+  return { createSession };
+};
+
+type CookieOptions = {
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: string;
+  path?: string;
+  expires?: Date;
+};
+
+export const mkCookie: (
+  name: string,
+  value: string,
+  options?: CookieOptions,
+) => string = (name, value, options = {}) => {
+  let cookie = `${name}=${value}`;
+  if (options.httpOnly) cookie += "; HttpOnly";
+  if (options.path) cookie += `; Path=${options.path}`;
+  if (options.secure) cookie += "; Secure";
+  if (options.expires) cookie += `; Expires=${options.expires.toUTCString()}`;
+  if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
+  return cookie;
+};
