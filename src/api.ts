@@ -11,7 +11,18 @@ import {
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 
-const { createSession } = initSessionMap();
+const { createSession, exists } = initSessionMap();
+
+const parseCookies: (cookies: string) => Record<string, string> = (
+  cookieString,
+) => {
+  const cookies: Record<string, string> = {};
+  cookieString.split(";").forEach((cookie) => {
+    const [name, ...value] = cookie.trim().split("=");
+    cookies[name] = value.join("=");
+  });
+  return cookies;
+};
 
 get("/", async (_, res) => {
   const index = await readFile("./public/index.html");
@@ -20,10 +31,16 @@ get("/", async (_, res) => {
   res.end();
 });
 
-get("/secret.html", async (_, res) => {
-  const secret = await readFile("./public/secret.html");
-  res.writeHead(200, { "Content-Type": "text/html" });
-  res.write(secret);
+get("/secret.html", async (req, res) => {
+  const cookieString = req.headers.cookie;
+  const cookies = parseCookies(cookieString);
+  if (cookies.sessionId && exists(cookies.sessionId)) {
+    const secret = await readFile("./public/secret.html");
+    res.writeHead(200, { "Content-Type": "text/html" });
+    res.write(secret);
+  } else {
+    res.writeHead(307, { Location: "/api/signin" });
+  }
   res.end();
 });
 
@@ -75,9 +92,8 @@ get("/api/signin/callback", async (req, res) => {
     path: "/",
     expires: new Date(Date.now() + 1000 * 60 * 60),
   });
-  res.writeHead(302, {
-    Location: "http://localhost:8080",
-    "Set-Cookie": cookie,
-  });
+
+  res.setHeader("Set-Cookie", cookie);
+  res.writeHead(302, { Location: "http://localhost:8080" });
   res.end();
 });

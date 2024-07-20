@@ -126,7 +126,10 @@ export const initSessionMap = () => {
     return sessionId;
   };
 
-  return { createSession };
+  const exists: (sessionId: string) => boolean = (sessionId) =>
+    sessions.has(sessionId);
+
+  return { createSession, exists };
 };
 
 type CookieOptions = {
