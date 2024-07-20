@@ -1,4 +1,5 @@
 import { z } from "zod";
+import crypto from "crypto";
 
 const WellKnownEndpoints = z.object({
   authorization_endpoint: z.string(),
@@ -21,23 +22,40 @@ export const wellKnownKeycloak: (
 ) => Promise<WellKnownEndpoints> = (basePath, realm) =>
   wellKnown(`${basePath}/realms/${realm}/.well-known/openid-configuration`);
 
+const generateCodeChallenge: (codeVerifier: string) => string = (
+  codeVerifier,
+) => {
+  const hash = crypto.createHash("sha256").update(codeVerifier).digest();
+  return base64UrlEncode(hash);
+};
+
+const base64UrlEncode: (buffer: Buffer) => string = (buffer) =>
+  buffer
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+const codeVerifier = "03f588de8bb2abf9e2e1fdc0fc26afb94ce70500d5cad17c5e5ed08f";
+
 export const mkAuthCodeRequest: (
   authUrl: string,
   redirectUrl: string,
   clientId: string,
   codeChallenge: string,
-) => string = (authUrl, redirectUrl, clientId, codeChallenge) => {
+) => Request = (authUrl, redirectUrl, clientId, codeChallenge) => {
   const url = new URL(authUrl);
+  const codeChallenge1 = generateCodeChallenge(codeVerifier);
   url.search = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
     state: "blakeks",
     redirect_uri: redirectUrl,
-    code_challenge: codeChallenge,
+    code_challenge: codeChallenge1,
     code_challenge_method: "S256",
     scope: "openid",
   }).toString();
-  return url.toString();
+  return new Request(url, { method: "GET" });
 };
 
 export const mkTokenRequest: (tokenUrl: string, code: string) => Request = (
@@ -49,7 +67,7 @@ export const mkTokenRequest: (tokenUrl: string, code: string) => Request = (
     redirect_uri: "http://localhost:8080/api/signin/callback",
     client_id: "oauth2-kata",
     client_secret: "super-secret",
-    code_verifier: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    code_verifier: codeVerifier,
     code,
   };
 

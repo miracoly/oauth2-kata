@@ -5,7 +5,6 @@ import {
   parseAuthResponseUrl,
   wellKnownKeycloak,
 } from "./authlib/authlib";
-import { sha256 } from "js-sha256";
 
 get("/", async (_, res) => {
   const wellKnown = await wellKnownKeycloak("http://localhost:8888", "kb");
@@ -16,14 +15,13 @@ get("/", async (_, res) => {
 
 get("/signin", async (_, res) => {
   const wellKnown = await wellKnownKeycloak("http://localhost:8888", "kb");
-  const codeChallenge = sha256("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-  const requestUrl = mkAuthCodeRequest(
+  const request = mkAuthCodeRequest(
     wellKnown.authorization_endpoint,
     "http://localhost:8080/api/signin/callback",
     "oauth2-kata",
-    codeChallenge,
+    "todo",
   );
-  res.writeHead(307, { Location: requestUrl });
+  res.writeHead(307, { Location: request.url });
   res.end();
 });
 
@@ -33,6 +31,7 @@ get("/api/signin/callback", async (req, res) => {
   const request = mkTokenRequest(wellKnown.token_endpoint, authResponse.code);
   const response = await fetch(request);
   const json = await response.json();
+  console.log("json", json);
   res.writeHead(307, { Location: "http://localhost:8080" });
   res.end();
 });
