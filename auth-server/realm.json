@@ -287,7 +287,7 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "super-secret",
-      "redirectUris": ["http://localhost:8080/*"],
+      "redirectUris": ["http://localhost:8080/api/signin/callback"],
       "webOrigins": ["/*"],
       "notBefore": 0,
       "bearerOnly": false,
@@ -1801,7 +1801,7 @@
   "users": [
     {
       "id": "c47d6f63-5cec-41bc-b9b7-a4ae78550a4d",
-      "username": "milfhunter3000",
+      "username": "testuser",
       "enabled": true,
       "email": "mikehunt@klosebrothers.de",
       "emailVerified": true,

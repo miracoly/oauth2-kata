@@ -29,7 +29,8 @@ const createRouterGroup = (method: HttpMethod, logger: Logger) => {
   const endpoints = new Map<Path, RequestListener>();
 
   const router: RequestListener = (req, res) => {
-    const handler = endpoints.get(req.url);
+    const pathname = new URL(req.url, "http://localhost:8080").pathname;
+    const handler = endpoints.get(pathname);
     typeof handler === "function" ? handler(req, res) : notFound(req, res);
   };
 
