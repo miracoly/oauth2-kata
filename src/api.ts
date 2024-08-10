@@ -11,10 +11,10 @@ import {
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 
-const { createSession, exists } = initSessionMap();
+const { createSession, exists, deleteSession } = initSessionMap();
 
-const parseCookies: (cookies: string) => Record<string, string> = (
-  cookieString,
+const parseCookies: (cookieString: string) => Record<string, string> = (
+  cookieString = "",
 ) => {
   const cookies: Record<string, string> = {};
   cookieString.split(";").forEach((cookie) => {
@@ -33,6 +33,7 @@ get("/", async (_, res) => {
 
 get("/secret.html", async (req, res) => {
   const cookieString = req.headers.cookie;
+  console.log("cookieString", cookieString);
   const cookies = parseCookies(cookieString);
   if (cookies.sessionId && exists(cookies.sessionId)) {
     const secret = await readFile("./public/secret.html");
@@ -57,7 +58,6 @@ get("/api/signin", async (_, res) => {
     wellKnown.authorization_endpoint,
     "http://localhost:8080/api/signin/callback",
     "oauth2-kata",
-    "todo",
   );
   res.writeHead(307, { Location: request.url });
   res.end();
@@ -95,5 +95,26 @@ get("/api/signin/callback", async (req, res) => {
 
   res.setHeader("Set-Cookie", cookie);
   res.writeHead(302, { Location: "http://localhost:8080" });
+  res.end();
+});
+
+get("/api/signout", async (_, res) => {
+  const { end_session_endpoint } = await wellKnownKeycloak(
+    "http://localhost:8888",
+    "kb",
+  );
+  const clientId = "oauth2-kata";
+  const redirectUrl = encodeURIComponent(
+    "http://localhost:8080/api/signout/callback",
+  );
+  const logoutUrl = `${end_session_endpoint}?post_logout_redirect_uri=${redirectUrl}&client_id=${clientId}`;
+  res.writeHead(307, { Location: logoutUrl });
+  res.end();
+});
+
+get("/api/signout/callback", async (req, res) => {
+  const sessionId = parseCookies(req.headers.cookie).sessionId;
+  deleteSession(sessionId);
+  res.writeHead(307, { Location: "http://localhost:8080" });
   res.end();
 });

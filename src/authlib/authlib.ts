@@ -4,6 +4,7 @@ import crypto from "crypto";
 const WellKnownEndpoints = z.object({
   authorization_endpoint: z.string(),
   token_endpoint: z.string(),
+  end_session_endpoint: z.string(),
 });
 
 type WellKnownEndpoints = z.infer<typeof WellKnownEndpoints>;
@@ -42,8 +43,7 @@ export const mkAuthCodeRequest: (
   authUrl: string,
   redirectUrl: string,
   clientId: string,
-  codeChallenge: string,
-) => Request = (authUrl, redirectUrl, clientId, codeChallenge) => {
+) => Request = (authUrl, redirectUrl, clientId) => {
   const url = new URL(authUrl);
   const codeChallenge1 = generateCodeChallenge(codeVerifier);
   url.search = new URLSearchParams({
@@ -129,7 +129,11 @@ export const initSessionMap = () => {
   const exists: (sessionId: string) => boolean = (sessionId) =>
     sessions.has(sessionId);
 
-  return { createSession, exists };
+  const deleteSession: (sessionId: string) => void = (sessionId) => {
+    sessions.delete(sessionId);
+  };
+
+  return { createSession, exists, deleteSession };
 };
 
 type CookieOptions = {
