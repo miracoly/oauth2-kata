@@ -1,17 +1,17 @@
-import { get } from "./ragettp/ragettp";
+import { get } from "./ragettp";
 import {
-  fetcher,
   initAuthCodeMap,
   initSessionMap,
   mkAuthCodeRequest,
-  mkCookie,
   mkTokenRequest,
   parseAuthResponseUrl,
   parseIdToken,
   wellKnownKeycloak,
-} from "./authlib/authlib";
+} from "./authlib";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
+import { mkCookie } from "./ragettp/cookie";
+import { fetcher } from "./ragettp/fetch";
 
 const CLIENT_ID = "oauth2-kata";
 const CLIENT_SECRET = "super-secret";

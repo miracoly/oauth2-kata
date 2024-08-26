@@ -1,5 +1,6 @@
-import { z, ZodError } from "zod";
-import crypto from "crypto";
+import { z } from "zod";
+import crypto from "node:crypto";
+import { fetcher } from "./ragettp/fetch";
 
 const WellKnownEndpoints = z.object({
   authorization_endpoint: z.string(),
@@ -9,16 +10,20 @@ const WellKnownEndpoints = z.object({
 
 type WellKnownEndpoints = z.infer<typeof WellKnownEndpoints>;
 
-const wellKnown: (
-  wellKnownPath: string,
-) => Promise<WellKnownEndpoints> = async (wellKnownPath) =>
-  await fetcher(WellKnownEndpoints)(wellKnownPath);
-
 export const wellKnownKeycloak: (
   basePath: string,
   realm: string,
 ) => Promise<WellKnownEndpoints> = (basePath, realm) =>
   wellKnown(`${basePath}/realms/${realm}/.well-known/openid-configuration`);
+
+const wellKnown: (
+  wellKnownPath: string,
+) => Promise<WellKnownEndpoints> = async (wellKnownPath) =>
+  await fetcher(WellKnownEndpoints)(wellKnownPath);
+
+const generateState: () => string = () =>
+  Math.random().toString(36).substring(2, 15) +
+  Math.random().toString(36).substring(2, 15);
 
 const generateCodeChallenge: (codeVerifier: string) => string = (
   codeVerifier,
@@ -41,10 +46,6 @@ const generateCodeVerifier: () => string = () => {
 };
 
 const dec2hex = (dec: number) => ("0" + dec.toString(16)).substring(0, 2);
-
-const generateState: () => string = () =>
-  Math.random().toString(36).substring(2, 15) +
-  Math.random().toString(36).substring(2, 15);
 
 export type AuthCode = {
   state: string;
@@ -182,54 +183,6 @@ export const initSessionMap = () => {
   };
 
   return { createSession, exists, deleteSession };
-};
-
-type CookieOptions = {
-  httpOnly?: boolean;
-  secure?: boolean;
-  sameSite?: string;
-  path?: string;
-  expires?: Date;
-};
-
-export const mkCookie: (
-  name: string,
-  value: string,
-  options?: CookieOptions,
-) => string = (name, value, options = {}) => {
-  let cookie = `${name}=${value}`;
-  if (options.httpOnly) cookie += "; HttpOnly";
-  if (options.path) cookie += `; Path=${options.path}`;
-  if (options.secure) cookie += "; Secure";
-  if (options.expires) cookie += `; Expires=${options.expires.toUTCString()}`;
-  if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
-  return cookie;
-};
-
-/**
- * Construct a fetcher that parses the response as a zod type
- * @param zType - The zod type to parse the response as, defaults to `void`
- * @returns A fetch function that returns a promise of the parsed response
- */
-export const fetcher: <T extends z.ZodTypeAny>(
-  zType: T,
-) => (...args: Parameters<typeof fetch>) => Promise<z.infer<T>> =
-  (zType) =>
-  (url, ...args) =>
-    fetch(url, ...args)
-      .then((res) => res.json())
-      .then((data) => zType.parse(data))
-      .catch(handleFetchErrors(url));
-
-const handleFetchErrors: (
-  url: Parameters<typeof fetch>[0],
-) => (e: Error) => void = (url) => (e) => {
-  if (e instanceof ZodError) {
-    console.error(e, url, e.errors);
-  } else {
-    console.error(e);
-  }
-  throw e;
 };
 
 export const _internal = {

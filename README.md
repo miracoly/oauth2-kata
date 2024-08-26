@@ -68,8 +68,8 @@ Follow the instructions below and ensure all tests pass.
   - [public](public): Contains the static files for the application.
   - [src](src): Contains the server code.
     - [ragettp](src/ragettp): Contains a naive implementation of an HTTP server.
-    - [test.ts](src/test.ts): Contains the tests.
-    - [authlib](src/authlib/authlib.ts): This is where you'll add the OAuth2 logic.
+    - [authlib](src/authlib.ts): This is where you'll add the OAuth2 logic.
+    - [authlib.authlib.test.ts](src/authlib.test.ts): Contains the tests.
     - [api.ts](src/api.ts): Contains the API endpoints.
 
 **Important**: You will only need to modify the `authlib` and `api.ts` files.
@@ -118,7 +118,7 @@ The login process isn’t complete yet. After the user logs in, Keycloak redirec
 Only known clients can exchange the code for tokens. The client needs to provide the client ID, client secret, and the authorization code. You’ve already seen the super secret client secret in the Keycloak settings.
 
 1. Implement `mkTokenRequest` in `authlib`.
-   - Refer to [src/tests.ts](src/test.ts) to understand the expected behavior.
+   - Refer to [src/authlib.authlib.test.ts](src/authlib.test.ts) to understand the expected behavior.
 2. Implement the `GET` endpoint `/api/signin/callback`:
    1. Fetch well-known endpoints using `wellKnownKeycloak` (ignore caching for this kata).
    2. Extract the authorization code information from the request URL by calling `parseAuthResponseUrl` with the request URL. Investigate the information you have here.

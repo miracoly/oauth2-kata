@@ -1,5 +1,5 @@
 import { createServer } from "http";
-import { handleRequestsWith, logger } from "./src/ragettp/ragettp";
+import { handleRequestsWith, logger } from "./src/ragettp";
 import * as api from "./src/api";
 
 const port = 8080;

@@ -4,7 +4,7 @@ import {
   mkAuthCodeRequest,
   mkTokenRequest,
   wellKnownKeycloak,
-} from "./authlib/authlib";
+} from "./authlib";
 
 import fetchMock from "fetch-mock";
 
