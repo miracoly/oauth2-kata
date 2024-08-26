@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import crypto from "crypto";
 
 const WellKnownEndpoints = z.object({
@@ -11,11 +11,8 @@ type WellKnownEndpoints = z.infer<typeof WellKnownEndpoints>;
 
 const wellKnown: (
   wellKnownPath: string,
-) => Promise<WellKnownEndpoints> = async (wellKnownPath) => {
-  const response = await fetch(wellKnownPath);
-  const data = await response.json();
-  return WellKnownEndpoints.parse(data);
-};
+) => Promise<WellKnownEndpoints> = async (wellKnownPath) =>
+  await fetcher(WellKnownEndpoints)(wellKnownPath);
 
 export const wellKnownKeycloak: (
   basePath: string,
@@ -37,19 +34,35 @@ const base64UrlEncode: (buffer: Buffer) => string = (buffer) =>
     .replace(/\//g, "_")
     .replace(/=+$/, "");
 
-const codeVerifier = "03f588de8bb2abf9e2e1fdc0fc26afb94ce70500d5cad17c5e5ed08f";
+const generateCodeVerifier: () => string = () => {
+  let array = new Uint32Array(56 / 2);
+  crypto.getRandomValues(array);
+  return Array.from(array, dec2hex).join("");
+};
+
+const dec2hex = (dec: number) => ("0" + dec.toString(16)).substring(0, 2);
+
+const generateState: () => string = () =>
+  Math.random().toString(36).substring(2, 15) +
+  Math.random().toString(36).substring(2, 15);
+
+export type AuthCode = {
+  state: string;
+  codeVerifier: string;
+};
 
 export const mkAuthCodeRequest: (
   authUrl: string,
   redirectUrl: string,
   clientId: string,
-) => Request = (authUrl, redirectUrl, clientId) => {
+  authCode: AuthCode,
+) => Request = (authUrl, redirectUrl, clientId, { state, codeVerifier }) => {
   const url = new URL(authUrl);
   const codeChallenge = generateCodeChallenge(codeVerifier);
   url.search = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
-    state: "blakeks",
+    state,
     redirect_uri: redirectUrl,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
@@ -58,15 +71,26 @@ export const mkAuthCodeRequest: (
   return new Request(url, { method: "GET" });
 };
 
-export const mkTokenRequest: (tokenUrl: string, code: string) => Request = (
+export const mkTokenRequest: (
+  tokenUrl: string,
+  redirectUrl: string,
+  clientId: string,
+  clientSecret: string,
+  code: string,
+  codeVerifier: string,
+) => Request = (
   tokenUrl,
+  redirectUrl,
+  clientId,
+  clientSecret,
   code,
+  codeVerifier,
 ) => {
   const payload = {
     grant_type: "authorization_code",
-    redirect_uri: "http://localhost:8080/api/signin/callback",
-    client_id: "oauth2-kata",
-    client_secret: "super-secret",
+    redirect_uri: redirectUrl,
+    client_id: clientId,
+    client_secret: clientSecret,
     code_verifier: codeVerifier,
     code,
   };
@@ -117,6 +141,30 @@ export const parseIdToken: (token: string) => IdToken = (token) =>
 export const generateSessionId: () => string = () =>
   crypto.randomBytes(16).toString("hex");
 
+export const initAuthCodeMap = () => {
+  type AuthCodeMapEntry = {
+    codeVerifier: string;
+    redirectUrl: string;
+  };
+  const authCodes = new Map<string, AuthCodeMapEntry>();
+
+  const createAuthCode: (redirectUrl: string) => AuthCode = (redirectUrl) => {
+    const state = generateState();
+    const codeVerifier = generateCodeVerifier();
+    authCodes.set(state, { redirectUrl, codeVerifier });
+    return { state, codeVerifier };
+  };
+
+  const getAuthCode: (state: string) => AuthCodeMapEntry | null = (state) =>
+    authCodes.get(state);
+
+  const deleteAuthCode: (state: string) => void = (state) => {
+    authCodes.delete(state);
+  };
+
+  return { createAuthCode, getAuthCode, deleteAuthCode };
+};
+
 export const initSessionMap = () => {
   const sessions = new Map<string, IdToken>();
 
@@ -156,4 +204,34 @@ export const mkCookie: (
   if (options.expires) cookie += `; Expires=${options.expires.toUTCString()}`;
   if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
   return cookie;
+};
+
+/**
+ * Construct a fetcher that parses the response as a zod type
+ * @param zType - The zod type to parse the response as, defaults to `void`
+ * @returns A fetch function that returns a promise of the parsed response
+ */
+export const fetcher: <T extends z.ZodTypeAny>(
+  zType: T,
+) => (...args: Parameters<typeof fetch>) => Promise<z.infer<T>> =
+  (zType) =>
+  (url, ...args) =>
+    fetch(url, ...args)
+      .then((res) => res.json())
+      .then((data) => zType.parse(data))
+      .catch(handleFetchErrors(url));
+
+const handleFetchErrors: (
+  url: Parameters<typeof fetch>[0],
+) => (e: Error) => void = (url) => (e) => {
+  if (e instanceof ZodError) {
+    console.error(e, url, e.errors);
+  } else {
+    console.error(e);
+  }
+  throw e;
+};
+
+export const _internal = {
+  generateCodeChallenge,
 };

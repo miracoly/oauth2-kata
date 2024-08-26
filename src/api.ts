@@ -1,5 +1,7 @@
 import { get } from "./ragettp/ragettp";
 import {
+  fetcher,
+  initAuthCodeMap,
   initSessionMap,
   mkAuthCodeRequest,
   mkCookie,
@@ -11,7 +13,11 @@ import {
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 
+const CLIENT_ID = "oauth2-kata";
+const CLIENT_SECRET = "super-secret";
+
 const { createSession, exists, deleteSession } = initSessionMap();
+const { createAuthCode, getAuthCode, deleteAuthCode } = initAuthCodeMap();
 
 const parseCookies: (cookieString: string) => Record<string, string> = (
   cookieString = "",
@@ -33,7 +39,6 @@ get("/", async (_, res) => {
 
 get("/secret.html", async (req, res) => {
   const cookieString = req.headers.cookie;
-  console.log("cookieString", cookieString);
   const cookies = parseCookies(cookieString);
   if (cookies.sessionId && exists(cookies.sessionId)) {
     const secret = await readFile("./public/secret.html");
@@ -54,11 +59,15 @@ get("/styles.css", async (_, res) => {
 
 get("/api/signin", async (_, res) => {
   const wellKnown = await wellKnownKeycloak("http://localhost:8888", "kb");
+  const redirectUrl = "http://localhost:8080/api/signin/callback";
+
   const request = mkAuthCodeRequest(
     wellKnown.authorization_endpoint,
-    "http://localhost:8080/api/signin/callback",
-    "oauth2-kata",
+    redirectUrl,
+    CLIENT_ID,
+    createAuthCode(redirectUrl),
   );
+
   res.writeHead(307, { Location: request.url });
   res.end();
 });
@@ -79,11 +88,20 @@ type TokenResponse = z.infer<typeof TokenResponse>;
 get("/api/signin/callback", async (req, res) => {
   const wellKnown = await wellKnownKeycloak("http://localhost:8888", "kb");
   const authResponse = parseAuthResponseUrl(req.url);
-  const request = mkTokenRequest(wellKnown.token_endpoint, authResponse.code);
-  const response = await fetch(request);
-  const json = await response.json();
-  const token: TokenResponse = TokenResponse.parse(json);
+  const { codeVerifier, redirectUrl } = getAuthCode(authResponse.state);
+
+  const request = mkTokenRequest(
+    wellKnown.token_endpoint,
+    redirectUrl,
+    CLIENT_ID,
+    CLIENT_SECRET,
+    authResponse.code,
+    codeVerifier,
+  );
+
+  const token: TokenResponse = await fetcher(TokenResponse)(request);
   const idToken = parseIdToken(token.id_token);
+
   const sessionId = createSession(idToken);
   const cookie = mkCookie("sessionId", sessionId, {
     httpOnly: true,
@@ -93,21 +111,33 @@ get("/api/signin/callback", async (req, res) => {
     expires: new Date(Date.now() + 1000 * 60 * 60),
   });
 
-  res.setHeader("Set-Cookie", cookie);
-  res.writeHead(302, { Location: "http://localhost:8080" });
+  deleteAuthCode(authResponse.state);
+
+  res.writeHead(302, {
+    "Set-Cookie": cookie,
+    Location: "http://localhost:8080",
+  });
   res.end();
 });
+
+const mkLogoutUrl: (
+  endSessionEndpoint: string,
+  redirectUrl: string,
+  clientId: string,
+) => string = (endSessionEndpoint, redirectUrl, clientId) =>
+  `${endSessionEndpoint}?post_logout_redirect_uri=${redirectUrl}&client_id=${clientId}`;
 
 get("/api/signout", async (_, res) => {
   const { end_session_endpoint } = await wellKnownKeycloak(
     "http://localhost:8888",
     "kb",
   );
-  const clientId = "oauth2-kata";
   const redirectUrl = encodeURIComponent(
     "http://localhost:8080/api/signout/callback",
   );
-  const logoutUrl = `${end_session_endpoint}?post_logout_redirect_uri=${redirectUrl}&client_id=${clientId}`;
+
+  const logoutUrl = mkLogoutUrl(end_session_endpoint, redirectUrl, CLIENT_ID);
+
   res.writeHead(307, { Location: logoutUrl });
   res.end();
 });
@@ -115,6 +145,16 @@ get("/api/signout", async (_, res) => {
 get("/api/signout/callback", async (req, res) => {
   const sessionId = parseCookies(req.headers.cookie).sessionId;
   deleteSession(sessionId);
-  res.writeHead(307, { Location: "http://localhost:8080" });
+  const cookie = mkCookie("sessionId", "", {
+    httpOnly: true,
+    secure: false,
+    sameSite: "Strict",
+    path: "/",
+    expires: new Date(Date.now() - 1000),
+  });
+  res.writeHead(307, {
+    "Set-Cookie": cookie,
+    Location: "http://localhost:8080",
+  });
   res.end();
 });
