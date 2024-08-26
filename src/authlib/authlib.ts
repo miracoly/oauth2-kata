@@ -45,13 +45,13 @@ export const mkAuthCodeRequest: (
   clientId: string,
 ) => Request = (authUrl, redirectUrl, clientId) => {
   const url = new URL(authUrl);
-  const codeChallenge1 = generateCodeChallenge(codeVerifier);
+  const codeChallenge = generateCodeChallenge(codeVerifier);
   url.search = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
     state: "blakeks",
     redirect_uri: redirectUrl,
-    code_challenge: codeChallenge1,
+    code_challenge: codeChallenge,
     code_challenge_method: "S256",
     scope: "openid",
   }).toString();
