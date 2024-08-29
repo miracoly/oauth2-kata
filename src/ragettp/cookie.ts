@@ -19,3 +19,14 @@ export const mkCookie: (
   if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
   return cookie;
 };
+
+export const parseCookies: (cookieString: string) => Record<string, string> = (
+  cookieString = "",
+) => {
+  const cookies: Record<string, string> = {};
+  cookieString.split(";").forEach((cookie) => {
+    const [name, ...value] = cookie.trim().split("=");
+    cookies[name] = value.join("=");
+  });
+  return cookies;
+};

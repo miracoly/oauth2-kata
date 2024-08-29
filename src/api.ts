@@ -10,7 +10,7 @@ import {
 } from "./authlib";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
-import { mkCookie } from "./ragettp/cookie";
+import { mkCookie, parseCookies } from "./ragettp/cookie";
 import { fetcher } from "./ragettp/fetch";
 
 const CLIENT_ID = "oauth2-kata";
@@ -18,17 +18,6 @@ const CLIENT_SECRET = "super-secret";
 
 const { createSession, exists, deleteSession } = initSessionMap();
 const { createAuthCode, getAuthCode, deleteAuthCode } = initAuthCodeMap();
-
-const parseCookies: (cookieString: string) => Record<string, string> = (
-  cookieString = "",
-) => {
-  const cookies: Record<string, string> = {};
-  cookieString.split(";").forEach((cookie) => {
-    const [name, ...value] = cookie.trim().split("=");
-    cookies[name] = value.join("=");
-  });
-  return cookies;
-};
 
 get("/", async (_, res) => {
   const index = await readFile("./public/index.html");
