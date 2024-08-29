@@ -3,10 +3,10 @@
 <!-- toc -->
 
 - [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Starting the Application](#starting-the-application)
-  - [Getting to Know Keycloak](#getting-to-know-keycloak)
+  * [Prerequisites](#prerequisites)
+  * [Installation](#installation)
+  * [Starting the Application](#starting-the-application)
+  * [Getting to Know Keycloak](#getting-to-know-keycloak)
 - [The Goal](#the-goal)
 - [Code Overview](#code-overview)
 - [Logging In](#logging-in)
@@ -122,7 +122,7 @@ Only known clients can exchange the code for tokens. The client needs to provide
 2. Implement the `GET` endpoint `/api/signin/callback`:
    1. Fetch well-known endpoints using `wellKnownKeycloak` (ignore caching for this kata).
    2. Extract the authorization code information from the request URL by calling `parseAuthResponseUrl` with the request URL. Investigate the information you have here.
-   3. Retrieve the code verifier using the `state`.
+   3. Retrieve the code verifier from the auth code map using the `state`.
    4. Construct the token request:
       - `tokenUrl`: `wellKnown.token_endpoint`
       - `clientId`: Refer to Keycloak settings.
@@ -141,7 +141,7 @@ Log the parsed token and examine the information it contains. Now, you have ever
 You can now generate a random session ID and store the user information in a map, which will serve as our session store. This map will be used to validate user requests. The functionality is already provided by `authlib`. Check the call to `initSessionMap` in [api.ts](src/api.ts).
 
 1. Call `createSession` with the ID token. This will generate a new session ID and store the user information in the global session map.
-2. The generated session ID needs to be sent to the user. We’ll use a cookie for this. Use `mkCookie` to create a valid cookie string with the following options:
+2. The generated session ID needs to be sent to the user. We’ll use a cookie for this. Use `mkCookie` from `ragettp/cookie` to create a valid cookie string with the following options:
    ```ts
    {
      httpOnly: true,
@@ -152,6 +152,7 @@ You can now generate a random session ID and store the user information in a map
    }
    ```
 3. Set the `Set-Cookie` header to our created cookie and respond with a 302 status code, redirecting to http://localhost:8080.
+4. Delete the state from the auth code map by calling `deleteAuthCode` with the `state`.
 
 You've now completed the login process. To test it, open `http://localhost:8080` in your browser and click the `Login` button. You should be redirected to the Keycloak login page. If you are already logged in to Keycloak, this step will be barely noticeable. After logging in, you should be redirected back to the client and see the home page.
 
@@ -165,7 +166,7 @@ Now, we can secure the `Secret Page`.
 
 Using the utilities provided by `initSessionMap`, you can protect the `Secret Page` so that only authenticated users with a valid session can access it.
 
-1. Use `parseCookies` to access the `sessionId` from the request.
+1. Use `parseCookies` from [ragettp/cookie](src/ragettp/cookie.ts) to access the `sessionId` from the request.
 2. Check if the session exists in the session map.
 3. If the session exists:
    - Respond with a `200` status code and return the content of the `Secret Page`.
